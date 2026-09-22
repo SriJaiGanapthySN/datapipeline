@@ -13,7 +13,7 @@ jobs:
   tmdb-etl:
     name: TMDB ETL Pipeline
 
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     environment:
       name: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development' }}
