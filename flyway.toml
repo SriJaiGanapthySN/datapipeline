@@ -1,0 +1,35 @@
+databaseType = "PostgreSql"
+id = "858cecb1-b7a5-4d06-9c98-9d3ab0ba8814"
+name = "tmdb-etl"
+
+[flyway]
+callbackLocations = ["filesystem:callbacks"]
+locations = ["filesystem:flyway/sql"]
+mixed = true
+outOfOrder = true
+
+# Baseline the existing database instead of recreating it
+baselineOnMigrate = true
+baselineVersion = "5"
+baselineDescription = "Existing TMDB ETL setup"
+
+schemaModelLocation = "schema-model"
+validateMigrationNaming = true
+
+[flywayDesktop]
+developmentEnvironment = "development"
+shadowEnvironment = "shadow"
+showDeploymentDecision = true
+
+[redgateCompare]
+filterFile = "filter.rgf"
+
+[redgateCompare.postgresql.options.behavior]
+detectRenames = "identical-only"
+
+[redgateCompare.postgresql.options.ignores]
+ignoreNewLinesInTextObjects = "off"
+
+[environments.target1]
+url = "jdbc:postgresql://localhost:5432/TMDB"
+schemas = ["ingestion", "tmdb", "audit", "reporting"]

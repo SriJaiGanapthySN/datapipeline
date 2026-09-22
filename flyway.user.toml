@@ -1,0 +1,3 @@
+[environments.target1]
+user = "postgres"
+password = "${localSecret.Flyway Desktop 9ff2ec55-a52f-4dee-83c8-408a14247da4}"
