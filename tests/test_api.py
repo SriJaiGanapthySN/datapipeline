@@ -2,7 +2,7 @@ from unittest.mock import patch, Mock
 from orchestrator.api_extractor import get_movie
 
 
-@patch("orchestrator.api_extractor.requests.get")
+@patch("orchestrator.api_extractor.session.get")
 def test_get_movie(mock_get):
 
     fake_response = Mock()
@@ -21,3 +21,6 @@ def test_get_movie(mock_get):
     assert movie["id"] == 550
     assert movie["title"] == "Fight Club"
     assert movie["runtime"] == 139
+    assert movie["vote_average"] == 8.8
+
+    mock_get.assert_called_once()
