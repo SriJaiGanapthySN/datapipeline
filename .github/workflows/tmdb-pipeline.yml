@@ -58,7 +58,7 @@ jobs:
       - name: Run Tests
         shell: powershell
         run: |
-          pytest -v
+          python -m pytest -v
 
       # ----------------------------------------
       # Step 5 - Verify Flyway
