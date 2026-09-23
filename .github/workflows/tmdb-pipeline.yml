@@ -97,20 +97,37 @@ jobs:
 
       - name: Run Flyway Migration
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: powershell
         run: |
           $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
 
-          & flyway @(
-            "-X",
-            "-url=$url",
-            "-user=$env:DB_USER",
-            "-password=$env:DB_PASSWORD",
-            "-schemas=ingestion,tmdb,audit,reporting",
-            "-locations=filesystem:flyway/sql",
-            "-baselineOnMigrate=true",
-            "-baselineVersion=5",
-            "migrate"
-          )
+          Start-Process flyway `
+            -ArgumentList @(
+              "-X",
+              "-url=$url",
+              "-user=$env:DB_USER",
+              "-password=$env:DB_PASSWORD",
+              "-schemas=ingestion,tmdb,audit,reporting",
+              "-locations=filesystem:$env:GITHUB_WORKSPACE\flyway\sql",
+              "migrate"
+            ) `
+            -Wait -NoNewWindow
+
+      - name: Verify Flyway Info
+        shell: powershell
+        run: |
+          $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
+
+          Start-Process flyway `
+            -ArgumentList @(
+              "-url=$url",
+              "-user=$env:DB_USER",
+              "-password=$env:DB_PASSWORD",
+              "-schemas=ingestion,tmdb,audit,reporting",
+              "-locations=filesystem:$env:GITHUB_WORKSPACE\flyway\sql",
+              "info"
+            ) `
+            -Wait -NoNewWindow
 
       - name: Verify Flyway After Migration
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
