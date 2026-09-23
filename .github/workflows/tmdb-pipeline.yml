@@ -22,10 +22,10 @@ jobs:
     runs-on: self-hosted
 
     environment:
-      name: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development' }}
+      name: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'production' || github.base_ref == 'stage' && 'staging' || 'development') || (github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development') }}
 
     env:
-      APP_ENV: ${{ github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev' }}
+      APP_ENV: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'prod' || github.base_ref == 'stage' && 'stage' || 'dev') || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
 
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_PORT: ${{ secrets.DB_PORT }}
@@ -48,6 +48,7 @@ jobs:
         run: |
           Write-Host "Event: $env:GITHUB_EVENT_NAME"
           Write-Host "Branch: $env:GITHUB_REF_NAME"
+          Write-Host "Target Branch: $env:GITHUB_BASE_REF"
           Write-Host "Repository: $env:GITHUB_REPOSITORY"
           Write-Host "APP_ENV: $env:APP_ENV"
 
@@ -89,20 +90,6 @@ jobs:
             Write-Error "flyway.toml NOT found."
             exit 1
           }
-      - name: Check Secrets
-        shell: powershell
-        run: |
-          Write-Host "DB_HOST=$env:DB_HOST"
-          Write-Host "DB_PORT=$env:DB_PORT"
-          Write-Host "DB_NAME=$env:DB_NAME"
-          Write-Host "DB_USER=$env:DB_USER"
-
-          if ($env:DB_PASSWORD) {
-            Write-Host "DB_PASSWORD exists"
-          } else {
-            Write-Host "DB_PASSWORD missing"
-            exit 1
-          }
 
       # Step 7 - Verify Flyway
 
@@ -110,25 +97,37 @@ jobs:
         shell: powershell
         run: |
           flyway -v
+
+      # Step 8 - Debug Flyway Config
+
       - name: Debug Flyway Config
         shell: powershell
         run: |
           flyway `
             -configFiles="$env:GITHUB_WORKSPACE\flyway.toml" `
+            -url="jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME" `
             -user="$env:DB_USER" `
             -password="$env:DB_PASSWORD" `
-            -url="jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME" `
             info
-      # Step 8 - Run Flyway Migration
+
+      # Step 9 - Run Flyway Migration
 
       - name: Run Flyway Migration
         if: github.event_name == 'push'
         shell: powershell
         run: |
           $url = "jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME"
-          flyway migrate -url="$url" -user="$env:DB_USER" -password="$env:DB_PASSWORD" -schemas="ingestion,tmdb,audit,reporting" -locations="filesystem:flyway/sql" -baselineOnMigrate=true -baselineVersion=5
 
-      # Step 9 - Verify TMDB Secret
+          flyway migrate `
+            -url="$url" `
+            -user="$env:DB_USER" `
+            -password="$env:DB_PASSWORD" `
+            -schemas="ingestion,tmdb,audit,reporting" `
+            -locations="filesystem:flyway/sql" `
+            -baselineOnMigrate=true `
+            -baselineVersion=5
+
+      # Step 10 - Verify TMDB Secret
 
       - name: Verify TMDB Secret
         shell: powershell
@@ -140,7 +139,7 @@ jobs:
             exit 1
           }
 
-      # Step 10 - Test TMDB Connectivity
+      # Step 11 - Test TMDB Connectivity
 
       - name: Test TMDB Connectivity
         shell: powershell
@@ -162,14 +161,14 @@ jobs:
             exit 1
           }
 
-      # Step 11 - Verify Python HTTPS
+      # Step 12 - Verify Python HTTPS
 
       - name: Verify Python HTTPS
         shell: powershell
         run: |
-          python -c "import os, requests; headers={'Authorization':'Bearer ' + os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'}; response=requests.get('https://api.themoviedb.org/3/configuration', headers=headers, timeout=20); response.raise_for_status(); print(response.status_code)"
+          python -c "import os, requests; headers={'Authorization':'Bearer '+os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'}; response=requests.get('https://api.themoviedb.org/3/configuration', headers=headers, timeout=20); response.raise_for_status(); print(response.status_code)"
 
-      # Step 12 - Run TMDB ETL Pipeline
+      # Step 13 - Run TMDB ETL Pipeline
 
       - name: Run TMDB ETL Pipeline
         if: github.event_name == 'push'
@@ -177,7 +176,7 @@ jobs:
         run: |
           python -m orchestrator.run_pipeline --movie-id 155
 
-      # Step 13 - Upload Logs
+      # Step 14 - Upload Logs
 
       - name: Upload Logs
         if: always()
@@ -189,7 +188,7 @@ jobs:
             .pytest_cache/
           if-no-files-found: ignore
 
-      # Step 14 - Success Message
+      # Step 15 - Success Message
 
       - name: Pipeline Completed
         if: success()
@@ -197,7 +196,7 @@ jobs:
         run: |
           Write-Host "TMDB ETL Pipeline completed successfully."
 
-      # Step 15 - Failure Message
+      # Step 16 - Failure Message
 
       - name: Pipeline Failed
         if: failure()
