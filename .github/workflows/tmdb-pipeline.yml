@@ -143,7 +143,7 @@ jobs:
       - name: Run TMDB ETL Pipeline
         shell: powershell
         run: |
-          python -m orchestrator.run_pipeline --movie-id 278
+          python -m orchestrator.run_pipeline --movie-id 155
 
        
       # Step 12 - Upload Logs
