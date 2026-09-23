@@ -90,31 +90,43 @@ jobs:
 
       - name: Test Flyway Connection
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: powershell
         run: |
           $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
 
-          & flyway @(
-            "-url=$url",
-            "-user=$env:DB_USER",
-            "-password=$env:DB_PASSWORD",
-            "testConnection"
-          )
+          cmd /c flyway ^
+            -url="$url" ^
+            -user="%DB_USER%" ^
+            -password="%DB_PASSWORD%" ^
+            testConnection
 
       - name: Run Flyway Migration
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: powershell
         run: |
           $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
 
-          & flyway @(
-            "-X",
-            "-url=$url",
-            "-user=$env:DB_USER",
-            "-password=$env:DB_PASSWORD",
-            "-schemas=ingestion,tmdb,audit,reporting",
-            "-locations=filesystem:flyway/sql",
-            "migrate"
-          )
+          cmd /c flyway ^
+            -X ^
+            -url="$url" ^
+            -user="%DB_USER%" ^
+            -password="%DB_PASSWORD%" ^
+            -schemas="ingestion,tmdb,audit,reporting" ^
+            -locations="filesystem:flyway/sql" ^
+            migrate
+      - name: Verify Flyway After Migration
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: powershell
+        run: |
+          $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
 
+          cmd /c flyway ^
+            -url="$url" ^
+            -user="%DB_USER%" ^
+            -password="%DB_PASSWORD%" ^
+            -schemas="ingestion,tmdb,audit,reporting" ^
+            -locations="filesystem:flyway/sql" ^
+            info
       - name: Verify Flyway After Migration
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
