@@ -10,6 +10,8 @@ env_file = BASE_DIR / "config" / f"{app_env}.env"
 
 load_dotenv(env_file, override=False)
 
+print("Hello World")
+
 def get_connection():
     return psycopg2.connect(
         host=os.getenv("DB_HOST", "").strip(),
