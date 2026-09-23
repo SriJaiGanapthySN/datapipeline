@@ -28,33 +28,33 @@ jobs:
 
     steps:
 
-      # ----------------------------------------
+       
       # Step 1 - Checkout Repository
-      # ----------------------------------------
+       
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # ----------------------------------------
+       
       # Step 2 - Show Branch & Environment
-      # ----------------------------------------
+       
       - name: Show Deployment Context
         shell: powershell
         run: |
           Write-Host "Branch: $env:GITHUB_REF_NAME"
           Write-Host "Repository: $env:GITHUB_REPOSITORY"
 
-      # ----------------------------------------
+       
       # Step 3 - Verify Python
-      # ----------------------------------------
+       
       - name: Verify Python
         shell: powershell
         run: |
           python --version
           python -m pip --version
 
-      # ----------------------------------------
+       
       # Step 4 - Install Dependencies
-      # ----------------------------------------
+       
       - name: Install Python Dependencies
         shell: powershell
         run: |
@@ -63,25 +63,25 @@ jobs:
           # Use the Windows certificate store for Python HTTPS requests on the self-hosted runner.
           python -m pip install pip-system-certs
 
-      # ----------------------------------------
+       
       # Step 5 - Run Tests
-      # ----------------------------------------
+       
       - name: Run Tests
         shell: powershell
         run: |
           python -m pytest -v
 
-      # ----------------------------------------
+       
       # Step 6 - Verify Flyway
-      # ----------------------------------------
+       
       - name: Verify Flyway
         shell: powershell
         run: |
           flyway -v
 
-      # ----------------------------------------
+       
       # Step 7 - Run Flyway Migration
-      # ----------------------------------------
+       
       - name: Run Flyway Migration
         shell: powershell
         run: |
@@ -93,9 +93,9 @@ jobs:
             -locations="filesystem:flyway/sql" `
             migrate
 
-      # ----------------------------------------
+       
       # Step 8 - Verify TMDB Secret
-      # ----------------------------------------
+       
       - name: Verify TMDB Secret
         shell: powershell
         run: |
@@ -106,9 +106,9 @@ jobs:
             exit 1
           }
 
-      # ----------------------------------------
+       
       # Step 9 - Test TMDB Connectivity (PowerShell)
-      # ----------------------------------------
+       
       - name: Test TMDB Connectivity
         shell: powershell
         run: |
@@ -129,25 +129,25 @@ jobs:
             exit 1
           }
 
-      # ----------------------------------------
+       
       # Step 10 - Verify Python HTTPS
-      # ----------------------------------------
+       
       - name: Verify Python HTTPS
         shell: powershell
         run: |
           python -c "import os, requests; headers={'Authorization':'Bearer ' + os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'}; response=requests.get('https://api.themoviedb.org/3/configuration', headers=headers, timeout=20); response.raise_for_status(); print(response.status_code)"
 
-      # ----------------------------------------
+       
       # Step 11 - Run TMDB ETL Pipeline
-      # ----------------------------------------
+       
       - name: Run TMDB ETL Pipeline
         shell: powershell
         run: |
           python -m orchestrator.run_pipeline --movie-id 278
 
-      # ----------------------------------------
+       
       # Step 12 - Upload Logs
-      # ----------------------------------------
+       
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -158,18 +158,18 @@ jobs:
             .pytest_cache/
           if-no-files-found: ignore
 
-      # ----------------------------------------
+       
       # Step 13 - Success Message
-      # ----------------------------------------
+       
       - name: Pipeline Completed
         if: success()
         shell: powershell
         run: |
           Write-Host "TMDB ETL Pipeline completed successfully."
 
-      # ----------------------------------------
+       
       # Step 14 - Failure Message
-      # ----------------------------------------
+       
       - name: Pipeline Failed
         if: failure()
         shell: powershell
