@@ -3,8 +3,8 @@ id = "858cecb1-b7a5-4d06-9c98-9d3ab0ba8814"
 name = "tmdb-etl"
 
 [flyway]
-callbackLocations = ["filesystem:callbacks"]
-locations = ["filesystem:flyway/sql"]
+callbackLocations = [ "filesystem:callbacks" ]
+locations = [ "filesystem:flyway/sql" ]
 mixed = true
 outOfOrder = true
 baselineOnMigrate = true
@@ -29,12 +29,12 @@ ignoreNewLinesInTextObjects = "off"
 
 [environments.dev]
 url = "jdbc:postgresql://localhost:5432/TMDB"
-schemas = ["ingestion", "tmdb", "audit", "reporting"]
+schemas = [ "ingestion", "tmdb", "audit", "reporting" ]
 
 [environments.stage]
 url = "jdbc:postgresql://localhost:5432/TMDB_STAGE"
-schemas = ["ingestion", "tmdb", "audit", "reporting"]
+schemas = [ "ingestion", "tmdb", "audit", "reporting" ]
 
 [environments.prod]
 url = "jdbc:postgresql://localhost:5432/TMDB_PROD"
-schemas = ["ingestion", "tmdb", "audit", "reporting"]
+schemas = [ "ingestion", "tmdb", "audit", "reporting" ]
