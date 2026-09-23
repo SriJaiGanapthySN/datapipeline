@@ -73,29 +73,45 @@ jobs:
         shell: powershell
         run: |
           python -m pytest -v
-      
 
-      # Step 6 - Verify Flyway
+      # Step 6 - Verify Working Directory
+
+      - name: Verify Working Directory
+        shell: powershell
+        run: |
+          Write-Host "Workspace: $env:GITHUB_WORKSPACE"
+          Get-Location
+          Get-ChildItem $env:GITHUB_WORKSPACE
+
+          if (Test-Path "$env:GITHUB_WORKSPACE\flyway.toml") {
+            Write-Host "flyway.toml found."
+          } else {
+            Write-Error "flyway.toml NOT found."
+            exit 1
+          }
+
+      # Step 7 - Verify Flyway
 
       - name: Verify Flyway
         shell: powershell
         run: |
           flyway -v
 
-      # Step 7 - Run Flyway Migration
+      # Step 8 - Run Flyway Migration
 
       - name: Run Flyway Migration
         if: github.event_name == 'push'
         shell: powershell
         run: |
           flyway `
-            -configFiles="flyway.toml" `
+            -workingDirectory="$env:GITHUB_WORKSPACE" `
+            -configFiles="$env:GITHUB_WORKSPACE\flyway.toml" `
             -environment=$env:APP_ENV `
             -user="$env:DB_USER" `
             -password="$env:DB_PASSWORD" `
             migrate
 
-      # Step 8 - Verify TMDB Secret
+      # Step 9 - Verify TMDB Secret
 
       - name: Verify TMDB Secret
         shell: powershell
@@ -107,7 +123,7 @@ jobs:
             exit 1
           }
 
-      # Step 9 - Test TMDB Connectivity
+      # Step 10 - Test TMDB Connectivity
 
       - name: Test TMDB Connectivity
         shell: powershell
@@ -129,14 +145,14 @@ jobs:
             exit 1
           }
 
-      # Step 10 - Verify Python HTTPS
+      # Step 11 - Verify Python HTTPS
 
       - name: Verify Python HTTPS
         shell: powershell
         run: |
           python -c "import os, requests; headers={'Authorization':'Bearer ' + os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'}; response=requests.get('https://api.themoviedb.org/3/configuration', headers=headers, timeout=20); response.raise_for_status(); print(response.status_code)"
 
-      # Step 11 - Run TMDB ETL Pipeline
+      # Step 12 - Run TMDB ETL Pipeline
 
       - name: Run TMDB ETL Pipeline
         if: github.event_name == 'push'
@@ -144,7 +160,7 @@ jobs:
         run: |
           python -m orchestrator.run_pipeline --movie-id 155
 
-      # Step 12 - Upload Logs
+      # Step 13 - Upload Logs
 
       - name: Upload Logs
         if: always()
@@ -156,7 +172,7 @@ jobs:
             .pytest_cache/
           if-no-files-found: ignore
 
-      # Step 13 - Success Message
+      # Step 14 - Success Message
 
       - name: Pipeline Completed
         if: success()
@@ -164,7 +180,7 @@ jobs:
         run: |
           Write-Host "TMDB ETL Pipeline completed successfully."
 
-      # Step 14 - Failure Message
+      # Step 15 - Failure Message
 
       - name: Pipeline Failed
         if: failure()
