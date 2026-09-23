@@ -90,6 +90,16 @@ jobs:
             Write-Error "flyway.toml NOT found."
             exit 1
           }
+      - name: Verify Production Secrets
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: powershell
+        run: |
+          Write-Host "Environment: ${{ job.environment.name }}"
+          Write-Host "APP_ENV: $env:APP_ENV"
+          Write-Host "DB_HOST loaded: $([bool]$env:DB_HOST)"
+          Write-Host "DB_PORT loaded: $([bool]$env:DB_PORT)"
+          Write-Host "DB_NAME loaded: $([bool]$env:DB_NAME)"
+          Write-Host "DB_USER loaded: $([bool]$env:DB_USER)"
 
       # Step 7 - Verify Flyway
 
