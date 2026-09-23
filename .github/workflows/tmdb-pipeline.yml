@@ -176,7 +176,7 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
         shell: powershell
         run: |
-          python -m orchestrator.run_pipeline --movie-id 15
+          python -m orchestrator.run_pipeline --movie-id 27
 
       # 14) Always save logs from failed or successful runs.
       - name: Upload Logs
