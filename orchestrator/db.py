@@ -4,7 +4,11 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / "config" / "dev.env")
+
+app_env = os.getenv("APP_ENV", "dev")
+env_file = BASE_DIR / "config" / f"{app_env}.env"
+
+load_dotenv(env_file, override=False)
 
 def get_connection():
     return psycopg2.connect(
