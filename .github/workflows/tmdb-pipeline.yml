@@ -90,12 +90,12 @@ jobs:
             Write-Error "flyway.toml NOT found."
             exit 1
           }
+
       - name: Verify Production Secrets
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         shell: powershell
         run: |
           Write-Host "Environment: $env:APP_ENV"
-          Write-Host "APP_ENV: $env:APP_ENV"
           Write-Host "DB_HOST loaded: $([bool]$env:DB_HOST)"
           Write-Host "DB_PORT loaded: $([bool]$env:DB_PORT)"
           Write-Host "DB_NAME loaded: $([bool]$env:DB_NAME)"
@@ -108,9 +108,10 @@ jobs:
         run: |
           flyway -v
 
-      # Step 8 - Debug Flyway Config
+      # Step 8 - Test Flyway Connection
 
       - name: Test Flyway Connection
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         shell: powershell
         run: |
           $url = "jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME"
@@ -130,6 +131,7 @@ jobs:
           $url = "jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME"
 
           flyway `
+            -X `
             -url="$url" `
             -user="$env:DB_USER" `
             -password="$env:DB_PASSWORD" `
