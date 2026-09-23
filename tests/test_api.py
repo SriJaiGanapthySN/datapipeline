@@ -1,6 +1,6 @@
 from unittest.mock import Mock, patch
 
-from orchestrator.api_extractor import get_movie
+from orchestrator.api_extractor import configure_ssl, get_movie
 
 
 @patch("orchestrator.api_extractor.requests.get")
@@ -20,3 +20,13 @@ def test_get_movie(mock_get):
     assert movie["title"] == "Fight Club"
 
     mock_get.assert_called_once()
+
+
+@patch("truststore.inject_into_ssl")
+def test_configure_ssl_handles_injection_failures(mock_inject):
+    mock_inject.side_effect = RuntimeError("SSL injection failed")
+
+    result = configure_ssl()
+
+    assert result is False
+    mock_inject.assert_called_once()
