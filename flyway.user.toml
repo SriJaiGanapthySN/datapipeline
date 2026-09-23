@@ -1,5 +1,5 @@
 [environments.dev]
-user = "postgres "
+user = "postgres"
 password = "${localSecret.Flyway Desktop bbd32bee-2d08-49a7-9d84-46bb99b19f7f}"
 
 [environments.stage]
