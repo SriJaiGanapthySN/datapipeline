@@ -22,7 +22,7 @@ jobs:
     runs-on: self-hosted
 
     environment:
-      name: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'production' || github.base_ref == 'stage' && 'staging' || 'dev') || (github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'dev') }}
+      name: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'production' || github.base_ref == 'stage' && 'stage' || 'dev') || (github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'stage' || 'dev') }}
 
     env:
       APP_ENV: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'prod' || github.base_ref == 'stage' && 'stage' || 'dev') || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
@@ -113,7 +113,7 @@ jobs:
       # Step 9 - Run Flyway Migration
 
       - name: Run Flyway Migration
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         shell: powershell
         run: |
           $url = "jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME"
@@ -171,7 +171,7 @@ jobs:
       # Step 13 - Run TMDB ETL Pipeline
 
       - name: Run TMDB ETL Pipeline
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         shell: powershell
         run: |
           python -m orchestrator.run_pipeline --movie-id 155
