@@ -136,7 +136,9 @@ jobs:
           )
 
       # 10) Make sure the TMDB token exists before any API call.
+      # This step must NOT run for open PRs because GitHub does not reliably expose secrets there.
       - name: Verify TMDB Secret
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
         shell: powershell
         run: |
           if ($env:TMDB_ACCESS_TOKEN) {
@@ -147,7 +149,9 @@ jobs:
           }
 
       # 11) Validate outbound TMDB connectivity from the self-hosted runner.
+      # This must only run when secrets are available and the branch is actually being deployed.
       - name: Test TMDB Connectivity
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
         shell: powershell
         run: |
           $env:HTTPS_PROXY = ""
@@ -166,7 +170,9 @@ jobs:
           Write-Host "Images Base URL: $($response.images.secure_base_url)"
 
       # 12) Confirm the Python runtime can also reach TMDB over HTTPS.
+      # Skip this on open PRs because the secret is unavailable and the request would fail.
       - name: Verify Python HTTPS
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
         shell: powershell
         run: |
           python -c "import os,requests;h={'Authorization':'Bearer '+os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'};r=requests.get('https://api.themoviedb.org/3/configuration',headers=h,timeout=20);r.raise_for_status();print(r.status_code)"
