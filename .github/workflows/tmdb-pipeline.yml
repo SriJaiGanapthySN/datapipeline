@@ -149,6 +149,12 @@ jobs:
        
       - name: Test TMDB Connectivity
         run: |
+          $env:HTTPS_PROXY = ""
+          $env:HTTP_PROXY = ""
+          $env:ALL_PROXY = ""
+
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
           $response = Invoke-RestMethod `
             -Uri "https://api.themoviedb.org/3/configuration" `
             -Headers @{

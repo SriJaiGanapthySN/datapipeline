@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 
 import requests
@@ -52,11 +53,24 @@ def get_headers():
 
 
 def get_movie(movie_id):
-    response = requests.get(
-        f"{BASE_URL}/movie/{movie_id}",
-        headers=get_headers(),
-        timeout=30
-    )
+    last_error = None
 
-    response.raise_for_status()
-    return response.json()
+    for attempt in range(3):
+        try:
+            response = requests.get(
+                f"{BASE_URL}/movie/{movie_id}",
+                headers=get_headers(),
+                timeout=30,
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as exc:
+            last_error = exc
+            if attempt < 2:
+                time.sleep(0.5 * (attempt + 1))
+                continue
+
+    raise RuntimeError(
+        "TMDB request failed. Check internet access, proxy/TLS settings, and the TMDB_ACCESS_TOKEN. "
+        f"Original error: {last_error}"
+    ) from last_error
