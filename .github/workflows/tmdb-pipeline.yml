@@ -7,6 +7,12 @@ on:
       - stage
       - main
 
+  pull_request:
+    branches:
+      - dev
+      - stage
+      - main
+
   workflow_dispatch:
 
 jobs:
@@ -40,6 +46,7 @@ jobs:
       - name: Show Deployment Context
         shell: powershell
         run: |
+          Write-Host "Event: $env:GITHUB_EVENT_NAME"
           Write-Host "Branch: $env:GITHUB_REF_NAME"
           Write-Host "Repository: $env:GITHUB_REPOSITORY"
           Write-Host "APP_ENV: $env:APP_ENV"
@@ -77,6 +84,7 @@ jobs:
       # Step 7 - Run Flyway Migration
 
       - name: Run Flyway Migration
+        if: github.event_name == 'push'
         shell: powershell
         run: |
           flyway `
@@ -129,6 +137,7 @@ jobs:
       # Step 11 - Run TMDB ETL Pipeline
 
       - name: Run TMDB ETL Pipeline
+        if: github.event_name == 'push'
         shell: powershell
         run: |
           python -m orchestrator.run_pipeline --movie-id 155
