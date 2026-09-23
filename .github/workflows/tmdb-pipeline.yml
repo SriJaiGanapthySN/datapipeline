@@ -118,14 +118,15 @@ jobs:
         run: |
           $url = "jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME"
 
-          flyway migrate `
+          flyway `
             -url="$url" `
             -user="$env:DB_USER" `
             -password="$env:DB_PASSWORD" `
             -schemas="ingestion,tmdb,audit,reporting" `
             -locations="filesystem:flyway/sql" `
             -baselineOnMigrate=true `
-            -baselineVersion=5
+            -baselineVersion=5 `
+            migrate
 
       # Step 10 - Verify TMDB Secret
 
