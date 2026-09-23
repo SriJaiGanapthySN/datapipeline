@@ -110,15 +110,16 @@ jobs:
 
       # Step 8 - Debug Flyway Config
 
-      - name: Debug Flyway Config
+      - name: Test Flyway Connection
         shell: powershell
         run: |
+          $url = "jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME"
+
           flyway `
-            -configFiles="$env:GITHUB_WORKSPACE\flyway.toml" `
-            -url="jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME" `
+            -url="$url" `
             -user="$env:DB_USER" `
             -password="$env:DB_PASSWORD" `
-            info
+            testConnection
 
       # Step 9 - Run Flyway Migration
 
