@@ -7,6 +7,12 @@ on:
       - stage
       - main
 
+  pull_request:
+    branches:
+      - dev
+      - stage
+      - main
+
   workflow_dispatch:
 
 jobs:
@@ -16,15 +22,22 @@ jobs:
     runs-on: self-hosted
 
     environment:
-      name: ${{ github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development' }}
+      name: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'production' || github.base_ref == 'stage' && 'staging' || 'development') || (github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development') }}
 
     env:
+      APP_ENV: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'prod' || github.base_ref == 'stage' && 'stage' || 'dev') || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
+
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_PORT: ${{ secrets.DB_PORT }}
       DB_NAME: ${{ secrets.DB_NAME }}
       DB_USER: ${{ secrets.DB_USER }}
       DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
       TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+
+    defaults:
+      run:
+        shell: powershell
+        working-directory: ${{ github.workspace }}
 
     steps:
 
@@ -38,16 +51,16 @@ jobs:
       # Step 2 - Show Branch & Environment
        
       - name: Show Deployment Context
-        shell: powershell
         run: |
+          Write-Host "Event: $env:GITHUB_EVENT_NAME"
           Write-Host "Branch: $env:GITHUB_REF_NAME"
-          Write-Host "Repository: $env:GITHUB_REPOSITORY"
+          Write-Host "Target Branch: $env:GITHUB_BASE_REF"
+          Write-Host "APP_ENV: $env:APP_ENV"
 
        
       # Step 3 - Verify Python
        
       - name: Verify Python
-        shell: powershell
         run: |
           python --version
           python -m pip --version
@@ -56,18 +69,14 @@ jobs:
       # Step 4 - Install Dependencies
        
       - name: Install Python Dependencies
-        shell: powershell
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-          # Use the Windows certificate store for Python HTTPS requests on the self-hosted runner.
-          python -m pip install pip-system-certs
 
        
       # Step 5 - Run Tests
        
       - name: Run Tests
-        shell: powershell
         run: |
           python -m pytest -v
 
@@ -75,7 +84,6 @@ jobs:
       # Step 6 - Verify Flyway
        
       - name: Verify Flyway
-        shell: powershell
         run: |
           flyway -v
 
@@ -83,6 +91,7 @@ jobs:
       # Step 7 - Run Flyway Migration
        
       - name: Run Flyway Migration
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         shell: powershell
         run: |
           flyway `
@@ -99,6 +108,35 @@ jobs:
       - name: Verify TMDB Secret
         shell: powershell
         run: |
+          $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
+
+          Start-Process flyway `
+            -ArgumentList @(
+              "-url=$url",
+              "-user=$env:DB_USER",
+              "-password=$env:DB_PASSWORD",
+              "-schemas=ingestion,tmdb,audit,reporting",
+              "-locations=filesystem:$env:GITHUB_WORKSPACE\flyway\sql",
+              "info"
+            ) `
+            -Wait -NoNewWindow
+
+      - name: Verify Flyway After Migration
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
+
+          & flyway @(
+            "-url=$url",
+            "-user=$env:DB_USER",
+            "-password=$env:DB_PASSWORD",
+            "-schemas=ingestion,tmdb,audit,reporting",
+            "-locations=filesystem:flyway/sql",
+            "info"
+          )
+
+      - name: Verify TMDB Secret
+        run: |
           if ($env:TMDB_ACCESS_TOKEN) {
             Write-Host "TMDB Access Token is available."
           } else {
@@ -110,40 +148,31 @@ jobs:
       # Step 9 - Test TMDB Connectivity (PowerShell)
        
       - name: Test TMDB Connectivity
-        shell: powershell
         run: |
-          try {
-            $response = Invoke-RestMethod `
-              -Uri "https://api.themoviedb.org/3/configuration" `
-              -Headers @{
-                Authorization = "Bearer $env:TMDB_ACCESS_TOKEN"
-                Accept = "application/json"
-              } `
-              -TimeoutSec 20
+          $response = Invoke-RestMethod `
+            -Uri "https://api.themoviedb.org/3/configuration" `
+            -Headers @{
+              Authorization = "Bearer $env:TMDB_ACCESS_TOKEN"
+              Accept = "application/json"
+            }
 
-            Write-Host "TMDB API is reachable."
-            Write-Host "Images Base URL: $($response.images.secure_base_url)"
-          }
-          catch {
-            Write-Host $_
-            exit 1
-          }
+          Write-Host "TMDB API is reachable."
+          Write-Host "Images Base URL: $($response.images.secure_base_url)"
 
        
       # Step 10 - Verify Python HTTPS
        
       - name: Verify Python HTTPS
-        shell: powershell
         run: |
-          python -c "import os, requests; headers={'Authorization':'Bearer ' + os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'}; response=requests.get('https://api.themoviedb.org/3/configuration', headers=headers, timeout=20); response.raise_for_status(); print(response.status_code)"
+          python -c "import os,requests;h={'Authorization':'Bearer '+os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'};r=requests.get('https://api.themoviedb.org/3/configuration',headers=h,timeout=20);r.raise_for_status();print(r.status_code)"
 
        
       # Step 11 - Run TMDB ETL Pipeline
        
       - name: Run TMDB ETL Pipeline
-        shell: powershell
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
-          python -m orchestrator.run_pipeline --movie-id 550
+          python -m orchestrator.run_pipeline --movie-id 155
 
        
       # Step 12 - Upload Logs
@@ -163,7 +192,6 @@ jobs:
        
       - name: Pipeline Completed
         if: success()
-        shell: powershell
         run: |
           Write-Host "TMDB ETL Pipeline completed successfully."
 
@@ -172,6 +200,5 @@ jobs:
        
       - name: Pipeline Failed
         if: failure()
-        shell: powershell
         run: |
           Write-Host "TMDB ETL Pipeline failed."

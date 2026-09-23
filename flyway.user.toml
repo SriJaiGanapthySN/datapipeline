@@ -1,3 +1,11 @@
-[environments.target1]
+[environments.dev]
 user = "postgres"
-password = "${localSecret.Flyway Desktop 9ff2ec55-a52f-4dee-83c8-408a14247da4}"
+password = "${localSecret.Flyway Desktop bbd32bee-2d08-49a7-9d84-46bb99b19f7f}"
+
+[environments.stage]
+user = "postgres"
+password = "${localSecret.Flyway Desktop 555d3b55-a098-478d-98b3-c1243378aca4}"
+
+[environments.prod]
+user = "postgres"
+password = "${localSecret.Flyway Desktop adf75959-8ec1-462d-a0aa-2f68e8e33796}"

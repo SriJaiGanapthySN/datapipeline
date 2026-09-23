@@ -76,6 +76,7 @@ from orchestrator.transformer import transform_movie
 def run_pipeline(movie_id):
 
     run_id = create_pipeline_run()
+    print(f"Pipeline started for movie_id: {movie_id}, run_id: {run_id}")
 
     try:
 
