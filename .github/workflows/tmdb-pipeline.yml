@@ -89,6 +89,20 @@ jobs:
             Write-Error "flyway.toml NOT found."
             exit 1
           }
+      - name: Check Secrets
+        shell: powershell
+        run: |
+          Write-Host "DB_HOST=$env:DB_HOST"
+          Write-Host "DB_PORT=$env:DB_PORT"
+          Write-Host "DB_NAME=$env:DB_NAME"
+          Write-Host "DB_USER=$env:DB_USER"
+
+          if ($env:DB_PASSWORD) {
+            Write-Host "DB_PASSWORD exists"
+          } else {
+            Write-Host "DB_PASSWORD missing"
+            exit 1
+          }
 
       # Step 7 - Verify Flyway
 
