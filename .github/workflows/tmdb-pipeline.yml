@@ -2,7 +2,7 @@ name: TMDB ETL CI/CD Pipeline
 
 # Trigger the pipeline on pushes to dev/stage/main,
 # on PR updates for those branches, and on manual runs.
-# Production migration/ETL runs only after merge to main or direct push to main.
+# A merged PR creates a push to the target branch, so deployment uses the push event.
 on:
   push:
     branches:
@@ -18,7 +18,6 @@ on:
       - opened
       - synchronize
       - reopened
-      - closed
   workflow_dispatch:
 
 jobs:
@@ -30,13 +29,11 @@ jobs:
   tmdb-etl:
     name: Build, Test, Migrate and Run ETL
     runs-on: self-hosted
-    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' || github.event.pull_request.merged == true }}
-
     environment:
-      name: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'prod' || github.base_ref == 'stage' && 'stage' || 'dev') || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
+      name: ${{ github.event_name == 'pull_request' && 'dev' || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
 
     env:
-      APP_ENV: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'prod' || github.base_ref == 'stage' && 'stage' || 'dev') || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
+      APP_ENV: ${{ github.event_name == 'pull_request' && 'dev' || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_PORT: ${{ secrets.DB_PORT }}
       DB_NAME: ${{ secrets.DB_NAME }}
@@ -91,7 +88,7 @@ jobs:
 
       # 7) Check that the selected database is reachable before migration.
       - name: Test Flyway Connection
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
@@ -104,7 +101,7 @@ jobs:
 
       # 8) Apply schema changes for the active environment only.
       - name: Run Flyway Migration
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
@@ -122,7 +119,7 @@ jobs:
 
       # 9) Show migration status after applying the schema changes.
       - name: Verify Flyway After Migration
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
@@ -138,7 +135,7 @@ jobs:
       # 10) Make sure the TMDB token exists before any API call.
       # This step must NOT run for open PRs because GitHub does not reliably expose secrets there.
       - name: Verify TMDB Secret
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           if ($env:TMDB_ACCESS_TOKEN) {
@@ -151,7 +148,7 @@ jobs:
       # 11) Validate outbound TMDB connectivity from the self-hosted runner.
       # This must only run when secrets are available and the branch is actually being deployed.
       - name: Test TMDB Connectivity
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           $env:HTTPS_PROXY = ""
@@ -172,14 +169,14 @@ jobs:
       # 12) Confirm the Python runtime can also reach TMDB over HTTPS.
       # Skip this on open PRs because the secret is unavailable and the request would fail.
       - name: Verify Python HTTPS
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           python -c "import os,requests;h={'Authorization':'Bearer '+os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'};r=requests.get('https://api.themoviedb.org/3/configuration',headers=h,timeout=20);r.raise_for_status();print(r.status_code)"
 
-      # 13) Run the actual ETL only for pushes or merged PRs.
+      # 13) Run the actual ETL only for pushes or manual runs.
       - name: Run TMDB ETL Pipeline
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           python -m orchestrator.run_pipeline --movie-id 27
