@@ -1,7 +1,5 @@
 import os
 from pathlib import Path
-
-import certifi
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -36,10 +34,10 @@ session.mount("http://", adapter)
 
 def get_movie(movie_id):
     response = session.get(
-        f"{BASE_URL}/movie/{movie_id}",
-        headers=HEADERS,
-        timeout=30
-    )
+    f"{BASE_URL}/movie/{movie_id}",
+    headers=HEADERS,
+    timeout=30
+)
 
     response.raise_for_status()
     return response.json()
