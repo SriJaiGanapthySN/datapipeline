@@ -125,13 +125,8 @@ jobs:
         if: github.event_name == 'push'
         shell: powershell
         run: |
-          flyway `
-            -workingDirectory="$env:GITHUB_WORKSPACE" `
-            -configFiles="$env:GITHUB_WORKSPACE\flyway.toml" `
-            -environment=$env:APP_ENV `
-            -user="$env:DB_USER" `
-            -password="$env:DB_PASSWORD" `
-            migrate
+          $url = "jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME"
+          flyway migrate -url="$url" -user="$env:DB_USER" -password="$env:DB_PASSWORD" -schemas="ingestion,tmdb,audit,reporting" -locations="filesystem:flyway/sql" -baselineOnMigrate=true -baselineVersion=5
 
       # Step 9 - Verify TMDB Secret
 
