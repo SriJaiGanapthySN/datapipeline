@@ -73,6 +73,13 @@ jobs:
         shell: powershell
         run: |
           python -m pytest -v
+      
+      - name: Verify Working Directory
+        shell: powershell
+        run: |
+          Get-Location
+          Get-ChildItem
+          Test-Path flyway.toml
 
       # Step 6 - Verify Flyway
 
