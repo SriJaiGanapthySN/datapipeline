@@ -88,6 +88,7 @@ jobs:
         shell: powershell
         run: |
           flyway `
+            -configFiles="flyway.toml" `
             -environment=$env:APP_ENV `
             -user="$env:DB_USER" `
             -password="$env:DB_PASSWORD" `
