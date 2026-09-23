@@ -1,14 +1,20 @@
 import os
+from pathlib import Path
+
 import psycopg2
 from dotenv import load_dotenv
-from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-app_env = os.getenv("APP_ENV", "dev")
-env_file = BASE_DIR / "config" / f"{app_env}.env"
+APP_ENV = os.getenv("APP_ENV", "dev").strip().lower()
+ENV_FILE = {
+    "dev": "dev.env",
+    "stage": "stage.env",
+    "prod": "prod.env",
+}.get(APP_ENV, "dev.env")
 
-load_dotenv(env_file, override=False)
+load_dotenv(BASE_DIR / "config" / ENV_FILE, override=False)
+
 
 def get_connection():
     return psycopg2.connect(

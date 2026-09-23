@@ -1,32 +1,42 @@
 name: TMDB ETL CI/CD Pipeline
 
+# Trigger the pipeline on pushes to dev/stage/main,
+# on PR updates for those branches, and on manual runs.
+# Production migration/ETL runs only after merge to main or direct push to main.
 on:
   push:
     branches:
       - dev
       - stage
       - main
-
   pull_request:
     branches:
       - dev
       - stage
       - main
-
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
   workflow_dispatch:
 
 jobs:
+  # Single job handles validation, migration, and ETL execution.
+  # Branch-to-environment mapping:
+  #   dev   -> dev.env
+  #   stage -> stage.env
+  #   main  -> prod.env
   tmdb-etl:
     name: Build, Test, Migrate and Run ETL
-
     runs-on: self-hosted
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' || github.event.pull_request.merged == true }}
 
     environment:
-      name: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'production' || github.base_ref == 'stage' && 'staging' || 'development') || (github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development') }}
+      name: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'prod' || github.base_ref == 'stage' && 'stage' || 'dev') || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
 
     env:
       APP_ENV: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'prod' || github.base_ref == 'stage' && 'stage' || 'dev') || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
-
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_PORT: ${{ secrets.DB_PORT }}
       DB_NAME: ${{ secrets.DB_NAME }}
@@ -40,92 +50,82 @@ jobs:
         working-directory: ${{ github.workspace }}
 
     steps:
-
-       
-      # Step 1 - Checkout Repository
-       
+      # 1) Get the repository code for the current branch/PR.
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-       
-      # Step 2 - Show Branch & Environment
-       
+      # 2) Print the active event, branch, and selected environment.
       - name: Show Deployment Context
+        shell: powershell
         run: |
           Write-Host "Event: $env:GITHUB_EVENT_NAME"
-          Write-Host "Branch: $env:GITHUB_REF_NAME"
-          Write-Host "Target Branch: $env:GITHUB_BASE_REF"
+          Write-Host "Ref: $env:GITHUB_REF_NAME"
+          Write-Host "Base Ref: $env:GITHUB_BASE_REF"
           Write-Host "APP_ENV: $env:APP_ENV"
 
-       
-      # Step 3 - Verify Python
-       
+      # 3) Check the Python runtime used by the workflow.
       - name: Verify Python
+        shell: powershell
         run: |
           python --version
           python -m pip --version
 
-       
-      # Step 4 - Install Dependencies
-       
+      # 4) Install project dependencies for the selected branch.
       - name: Install Python Dependencies
+        shell: powershell
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-       
-      # Step 5 - Run Tests
-       
+      # 5) Run the unit tests before any database or ETL work.
       - name: Run Tests
+        shell: powershell
         run: |
           python -m pytest -v
 
-       
-      # Step 6 - Verify Flyway
-       
+      # 6) Validate the Flyway CLI is available.
       - name: Verify Flyway
+        shell: powershell
         run: |
           flyway -v
 
-       
-      # Step 7 - Run Flyway Migration
-       
+      # 7) Check that the selected database is reachable before migration.
+      - name: Test Flyway Connection
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
+        shell: powershell
+        run: |
+          $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
+          & flyway @(
+            "-url=$url",
+            "-user=$env:DB_USER",
+            "-password=$env:DB_PASSWORD",
+            "testConnection"
+          )
+
+      # 8) Apply schema changes for the active environment only.
       - name: Run Flyway Migration
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        shell: powershell
-        run: |
-          flyway `
-            -url="jdbc:postgresql://${env:DB_HOST}:${env:DB_PORT}/${env:DB_NAME}" `
-            -user="${env:DB_USER}" `
-            -password="${env:DB_PASSWORD}" `
-            -schemas="ingestion,tmdb,audit,reporting" `
-            -locations="filesystem:flyway/sql" `
-            migrate
-
-       
-      # Step 8 - Verify TMDB Secret
-       
-      - name: Verify TMDB Secret
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
         shell: powershell
         run: |
           $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
+          & flyway @(
+            "-X",
+            "-url=$url",
+            "-user=$env:DB_USER",
+            "-password=$env:DB_PASSWORD",
+            "-schemas=ingestion,tmdb,audit,reporting",
+            "-locations=filesystem:flyway/sql",
+            "-baselineOnMigrate=true",
+            "-baselineVersion=5",
+            "migrate"
+          )
 
-          Start-Process flyway `
-            -ArgumentList @(
-              "-url=$url",
-              "-user=$env:DB_USER",
-              "-password=$env:DB_PASSWORD",
-              "-schemas=ingestion,tmdb,audit,reporting",
-              "-locations=filesystem:$env:GITHUB_WORKSPACE\flyway\sql",
-              "info"
-            ) `
-            -Wait -NoNewWindow
-
+      # 9) Show migration status after applying the schema changes.
       - name: Verify Flyway After Migration
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
+        shell: powershell
         run: |
           $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
-
           & flyway @(
             "-url=$url",
             "-user=$env:DB_USER",
@@ -135,7 +135,9 @@ jobs:
             "info"
           )
 
+      # 10) Make sure the TMDB token exists before any API call.
       - name: Verify TMDB Secret
+        shell: powershell
         run: |
           if ($env:TMDB_ACCESS_TOKEN) {
             Write-Host "TMDB Access Token is available."
@@ -144,11 +146,15 @@ jobs:
             exit 1
           }
 
-       
-      # Step 9 - Test TMDB Connectivity (PowerShell)
-       
+      # 11) Validate outbound TMDB connectivity from the self-hosted runner.
       - name: Test TMDB Connectivity
+        shell: powershell
         run: |
+          $env:HTTPS_PROXY = ""
+          $env:HTTP_PROXY = ""
+          $env:ALL_PROXY = ""
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
           $response = Invoke-RestMethod `
             -Uri "https://api.themoviedb.org/3/configuration" `
             -Headers @{
@@ -159,24 +165,20 @@ jobs:
           Write-Host "TMDB API is reachable."
           Write-Host "Images Base URL: $($response.images.secure_base_url)"
 
-       
-      # Step 10 - Verify Python HTTPS
-       
+      # 12) Confirm the Python runtime can also reach TMDB over HTTPS.
       - name: Verify Python HTTPS
+        shell: powershell
         run: |
           python -c "import os,requests;h={'Authorization':'Bearer '+os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'};r=requests.get('https://api.themoviedb.org/3/configuration',headers=h,timeout=20);r.raise_for_status();print(r.status_code)"
 
-       
-      # Step 11 - Run TMDB ETL Pipeline
-       
+      # 13) Run the actual ETL only for pushes or merged PRs.
       - name: Run TMDB ETL Pipeline
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true) }}
+        shell: powershell
         run: |
-          python -m orchestrator.run_pipeline --movie-id 155
+          python -m orchestrator.run_pipeline --movie-id 15
 
-       
-      # Step 12 - Upload Logs
-       
+      # 14) Always save logs from failed or successful runs.
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -187,18 +189,16 @@ jobs:
             .pytest_cache/
           if-no-files-found: ignore
 
-       
-      # Step 13 - Success Message
-       
+      # 15) Final status message for a successful run.
       - name: Pipeline Completed
         if: success()
+        shell: powershell
         run: |
           Write-Host "TMDB ETL Pipeline completed successfully."
 
-       
-      # Step 14 - Failure Message
-       
+      # 16) Final status message for a failed run.
       - name: Pipeline Failed
         if: failure()
+        shell: powershell
         run: |
           Write-Host "TMDB ETL Pipeline failed."
