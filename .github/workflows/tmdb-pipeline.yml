@@ -62,7 +62,7 @@ jobs:
           python -m pip install -r requirements.txt
 
       # ----------------------------------------
-      # Step 5 - Run Unit Tests
+      # Step 5 - Run Tests
       # ----------------------------------------
       - name: Run Tests
         shell: powershell
@@ -92,7 +92,7 @@ jobs:
             migrate
 
       # ----------------------------------------
-      # Step 8 - Verify TMDB Secret Exists
+      # Step 8 - Verify TMDB Secret
       # ----------------------------------------
       - name: Verify TMDB Secret
         shell: powershell
@@ -105,43 +105,46 @@ jobs:
           }
 
       # ----------------------------------------
-      # Step 9 - Test TMDB Connectivity
+      # Step 9 - Test TMDB Connectivity (PowerShell)
       # ----------------------------------------
       - name: Test TMDB Connectivity
         shell: powershell
         run: |
           try {
-            Invoke-WebRequest `
+            $response = Invoke-RestMethod `
               -Uri "https://api.themoviedb.org/3/configuration" `
               -Headers @{
                 Authorization = "Bearer $env:TMDB_ACCESS_TOKEN"
                 Accept = "application/json"
               } `
-              -UseBasicParsing `
-              -TimeoutSec 20 | Out-Null
+              -TimeoutSec 20
 
-            Write-Host "TMDB is reachable."
+            Write-Host "TMDB API is reachable."
+            Write-Host "Images Base URL: $($response.images.secure_base_url)"
           }
           catch {
             Write-Host $_
             exit 1
           }
-      
+
+      # ----------------------------------------
+      # Step 10 - Verify Python HTTPS
+      # ----------------------------------------
       - name: Verify Python HTTPS
         shell: powershell
         run: |
-          python -c "import requests; print(requests.get('https://api.themoviedb.org/3/configuration', headers={'Authorization':'Bearer $env:TMDB_ACCESS_TOKEN'}).status_code)"
-
-            # ----------------------------------------
-            # Step 10 - Execute TMDB ETL Pipeline
-            # ----------------------------------------
-            - name: Run TMDB ETL Pipeline
-              shell: powershell
-              run: |
-                python -m orchestrator.run_pipeline --movie-id 550
+          python -c "import requests; headers={'Authorization':'Bearer ' + r'$env:TMDB_ACCESS_TOKEN','Accept':'application/json'}; print(requests.get('https://api.themoviedb.org/3/configuration', headers=headers).status_code)"
 
       # ----------------------------------------
-      # Step 11 - Upload Logs
+      # Step 11 - Run TMDB ETL Pipeline
+      # ----------------------------------------
+      - name: Run TMDB ETL Pipeline
+        shell: powershell
+        run: |
+          python -m orchestrator.run_pipeline --movie-id 550
+
+      # ----------------------------------------
+      # Step 12 - Upload Logs
       # ----------------------------------------
       - name: Upload Logs
         if: always()
@@ -154,7 +157,7 @@ jobs:
           if-no-files-found: ignore
 
       # ----------------------------------------
-      # Step 12 - Success Message
+      # Step 13 - Success Message
       # ----------------------------------------
       - name: Pipeline Completed
         if: success()
@@ -163,7 +166,7 @@ jobs:
           Write-Host "TMDB ETL Pipeline completed successfully."
 
       # ----------------------------------------
-      # Step 13 - Failure Message
+      # Step 14 - Failure Message
       # ----------------------------------------
       - name: Pipeline Failed
         if: failure()
