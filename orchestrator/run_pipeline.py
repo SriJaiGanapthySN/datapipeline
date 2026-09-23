@@ -86,6 +86,7 @@ def run_pipeline(movie_id):
         normalized_movie = transform_movie(movie)
 
         store_payload(run_id, movie)
+        load_movie(run_id)
 
         update_pipeline_status(run_id, "COMPLETED")
 
