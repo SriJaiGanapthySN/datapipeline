@@ -113,6 +113,10 @@ jobs:
           try {
             Invoke-WebRequest `
               -Uri "https://api.themoviedb.org/3/configuration" `
+              -Headers @{
+                Authorization = "Bearer $env:TMDB_ACCESS_TOKEN"
+                Accept = "application/json"
+              } `
               -UseBasicParsing `
               -TimeoutSec 20 | Out-Null
 
