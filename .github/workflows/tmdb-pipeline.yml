@@ -33,7 +33,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' || github.event.pull_request.merged == true }}
 
     environment:
-      name: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'production' || github.base_ref == 'stage' && 'staging' || 'development') || (github.ref_name == 'main' && 'production' || github.ref_name == 'stage' && 'staging' || 'development') }}
+      name: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'prod' || github.base_ref == 'stage' && 'stage' || 'dev') || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
 
     env:
       APP_ENV: ${{ github.event_name == 'pull_request' && (github.base_ref == 'main' && 'prod' || github.base_ref == 'stage' && 'stage' || 'dev') || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
