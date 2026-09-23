@@ -38,7 +38,6 @@ def get_movie(movie_id):
     response = session.get(
         f"{BASE_URL}/movie/{movie_id}",
         headers=HEADERS,
-        verify=certifi.where(),
         timeout=30
     )
 
