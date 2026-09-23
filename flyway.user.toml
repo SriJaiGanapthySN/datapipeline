@@ -1,15 +1,3 @@
-[environments.target1]
-user = "postgres"
-password = "${localSecret.Flyway Desktop 9ff2ec55-a52f-4dee-83c8-408a14247da4}"
-
-[environments.target2]
-user = "postgres"
-password = "${localSecret.Flyway Desktop 96d99498-f9a0-4a29-bdb6-4fc8908504fd}"
-
-[environments.target3]
-user = "postgres"
-password = "${localSecret.Flyway Desktop 85418e53-3454-41af-a539-dafc928dbaf7}"
-
 [environments.dev]
 user = "postgres "
 password = "${localSecret.Flyway Desktop bbd32bee-2d08-49a7-9d84-46bb99b19f7f}"
