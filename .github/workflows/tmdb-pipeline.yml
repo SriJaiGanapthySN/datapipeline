@@ -96,7 +96,15 @@ jobs:
         shell: powershell
         run: |
           flyway -v
-
+      - name: Debug Flyway Config
+        shell: powershell
+        run: |
+          flyway `
+            -configFiles="$env:GITHUB_WORKSPACE\flyway.toml" `
+            -user="$env:DB_USER" `
+            -password="$env:DB_PASSWORD" `
+            -url="jdbc:postgresql://$env:DB_HOST`:$env:DB_PORT/$env:DB_NAME" `
+            info
       # Step 8 - Run Flyway Migration
 
       - name: Run Flyway Migration
