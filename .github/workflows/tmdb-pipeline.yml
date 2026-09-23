@@ -68,7 +68,12 @@ jobs:
       - name: Verify Working Directory
         run: |
           Get-Location
-          Test-Path flyway.toml
+          if (Test-Path "flyway.toml") {
+            Write-Host "flyway.toml found."
+          } else {
+            Write-Error "flyway.toml not found."
+            exit 1
+          }
 
       - name: Verify Secrets
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -107,8 +112,6 @@ jobs:
             "-password=$env:DB_PASSWORD",
             "-schemas=ingestion,tmdb,audit,reporting",
             "-locations=filesystem:flyway/sql",
-            "-baselineOnMigrate=true",
-            "-baselineVersion=5",
             "migrate"
           )
 
