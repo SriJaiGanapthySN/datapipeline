@@ -112,6 +112,8 @@ jobs:
             "-password=$env:DB_PASSWORD",
             "-schemas=ingestion,tmdb,audit,reporting",
             "-locations=filesystem:flyway/sql",
+            "-baselineOnMigrate=true",
+            "-baselineVersion=5",
             "migrate"
           )
 
