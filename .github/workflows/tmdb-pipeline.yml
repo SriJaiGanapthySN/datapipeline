@@ -174,7 +174,7 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
-          python -m orchestrator.run_pipeline --movie-id 299534
+          python -m orchestrator.run_pipeline --movie-id 299533
 
       # 14) Always save logs from failed or successful runs.
       - name: Upload Logs
