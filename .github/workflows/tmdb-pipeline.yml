@@ -106,11 +106,17 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
-          $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
+          # .Trim() guards against secrets pasted with a trailing newline/space, which corrupts Flyway's arg parsing.
+          $dbHost = $env:DB_HOST.Trim()
+          $dbPort = $env:DB_PORT.Trim()
+          $dbName = $env:DB_NAME.Trim()
+          $dbUser = $env:DB_USER.Trim()
+          $dbPassword = $env:DB_PASSWORD.Trim()
+          $url = "jdbc:postgresql://$($dbHost):$($dbPort)/$($dbName)"
           & flyway @(
             "-url=$url",
-            "-user=$env:DB_USER",
-            "-password=$env:DB_PASSWORD",
+            "-user=$dbUser",
+            "-password=$dbPassword",
             "testConnection"
           )
 
@@ -119,12 +125,17 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
-          $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
+          $dbHost = $env:DB_HOST.Trim()
+          $dbPort = $env:DB_PORT.Trim()
+          $dbName = $env:DB_NAME.Trim()
+          $dbUser = $env:DB_USER.Trim()
+          $dbPassword = $env:DB_PASSWORD.Trim()
+          $url = "jdbc:postgresql://$($dbHost):$($dbPort)/$($dbName)"
           & flyway @(
             "-X",
             "-url=$url",
-            "-user=$env:DB_USER",
-            "-password=$env:DB_PASSWORD",
+            "-user=$dbUser",
+            "-password=$dbPassword",
             "-schemas=ingestion,tmdb,audit,reporting",
             "-locations=filesystem:flyway/sql",
             "migrate"
@@ -135,11 +146,16 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
-          $url = "jdbc:postgresql://$($env:DB_HOST):$($env:DB_PORT)/$($env:DB_NAME)"
+          $dbHost = $env:DB_HOST.Trim()
+          $dbPort = $env:DB_PORT.Trim()
+          $dbName = $env:DB_NAME.Trim()
+          $dbUser = $env:DB_USER.Trim()
+          $dbPassword = $env:DB_PASSWORD.Trim()
+          $url = "jdbc:postgresql://$($dbHost):$($dbPort)/$($dbName)"
           & flyway @(
             "-url=$url",
-            "-user=$env:DB_USER",
-            "-password=$env:DB_PASSWORD",
+            "-user=$dbUser",
+            "-password=$dbPassword",
             "-schemas=ingestion,tmdb,audit,reporting",
             "-locations=filesystem:flyway/sql",
             "info"
@@ -189,7 +205,7 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
-          python -m orchestrator.run_pipeline --movie-id 299533
+          python -m orchestrator.run_pipeline --movie-id 603
 
       # 15) Always save logs from failed or successful runs.
       - name: Upload Logs
