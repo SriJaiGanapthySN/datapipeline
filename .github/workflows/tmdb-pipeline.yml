@@ -112,8 +112,6 @@ jobs:
             "-password=$env:DB_PASSWORD",
             "-schemas=ingestion,tmdb,audit,reporting",
             "-locations=filesystem:flyway/sql",
-            "-baselineOnMigrate=true",
-            "-baselineVersion=5",
             "migrate"
           )
 
@@ -179,7 +177,7 @@ jobs:
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
-          python -m orchestrator.run_pipeline --movie-id 27
+          python -m orchestrator.run_pipeline --movie-id 18
 
       # 14) Always save logs from failed or successful runs.
       - name: Upload Logs
