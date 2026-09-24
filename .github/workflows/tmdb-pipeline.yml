@@ -86,7 +86,22 @@ jobs:
         run: |
           flyway -v
 
-      # 7) Check that the selected database is reachable before migration.
+      # 7) Fail clearly if the selected GitHub environment has no database settings.
+      - name: Verify Database Configuration
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        shell: powershell
+        run: |
+          $requiredVariables = @('DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD')
+          $missingVariables = @(
+            $requiredVariables | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }
+          )
+
+          if ($missingVariables.Count -gt 0) {
+            Write-Error "Missing database configuration in the '$env:APP_ENV' GitHub environment: $($missingVariables -join ', ')"
+            exit 1
+          }
+
+      # 8) Check that the selected database is reachable before migration.
       - name: Test Flyway Connection
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
@@ -99,7 +114,7 @@ jobs:
             "testConnection"
           )
 
-      # 8) Apply schema changes for the active environment only.
+      # 9) Apply schema changes for the active environment only.
       - name: Run Flyway Migration
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
@@ -115,7 +130,7 @@ jobs:
             "migrate"
           )
 
-      # 9) Show migration status after applying the schema changes.
+      # 10) Show migration status after applying the schema changes.
       - name: Verify Flyway After Migration
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
@@ -130,7 +145,7 @@ jobs:
             "info"
           )
 
-      # 10) Make sure the TMDB token exists before any API call.
+      # 11) Make sure the TMDB token exists before any API call.
       - name: Verify TMDB Secret
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
@@ -142,7 +157,7 @@ jobs:
             exit 1
           }
 
-      # 11) Validate outbound TMDB connectivity from the self-hosted runner.
+      # 12) Validate outbound TMDB connectivity from the self-hosted runner.
       - name: Test TMDB Connectivity
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
@@ -162,21 +177,21 @@ jobs:
           Write-Host "TMDB API is reachable."
           Write-Host "Images Base URL: $($response.images.secure_base_url)"
 
-      # 12) Confirm the Python runtime can also reach TMDB over HTTPS.
+      # 13) Confirm the Python runtime can also reach TMDB over HTTPS.
       - name: Verify Python HTTPS
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           python -c "import os,requests;h={'Authorization':'Bearer '+os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'};r=requests.get('https://api.themoviedb.org/3/configuration',headers=h,timeout=20);r.raise_for_status();print(r.status_code)"
 
-      # 13) Run the actual ETL only for pushes or manual runs.
+      # 14) Run the actual ETL only for pushes or manual runs.
       - name: Run TMDB ETL Pipeline
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           python -m orchestrator.run_pipeline --movie-id 299533
 
-      # 14) Always save logs from failed or successful runs.
+      # 15) Always save logs from failed or successful runs.
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -187,14 +202,14 @@ jobs:
             .pytest_cache/
           if-no-files-found: ignore
 
-      # 15) Final status message for a successful run.
+      # 16) Final status message for a successful run.
       - name: Pipeline Completed
         if: success()
         shell: powershell
         run: |
           Write-Host "TMDB ETL Pipeline completed successfully."
 
-      # 16) Final status message for a failed run.
+      # 17) Final status message for a failed run.
       - name: Pipeline Failed
         if: failure()
         shell: powershell
