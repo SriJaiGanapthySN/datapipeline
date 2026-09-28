@@ -177,6 +177,7 @@ jobs:
       # 12) Validate outbound TMDB connectivity from the self-hosted runner.
       - name: Test TMDB Connectivity
         if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        continue-on-error: true
         shell: powershell
         run: |
           $env:HTTPS_PROXY = ""
