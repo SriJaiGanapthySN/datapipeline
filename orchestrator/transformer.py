@@ -2,6 +2,7 @@ def transform_movie(movie):
     """
     Convert the official TMDB Movie Details response
     into our PostgreSQL movie structure.
+    
     """
 
     return {
