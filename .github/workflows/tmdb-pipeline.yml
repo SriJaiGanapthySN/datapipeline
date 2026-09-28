@@ -28,7 +28,7 @@ jobs:
   #   main  -> prod.env
   tmdb-etl:
     name: Build, Test, Migrate and Run ETL
-    runs-on: self-hosted
+    runs-on: ${{ github.event_name == 'pull_request' && 'ubuntu-latest' || 'self-hosted' }}
     environment:
       name: ${{ github.event_name == 'pull_request' && 'dev' || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
 
@@ -82,6 +82,7 @@ jobs:
 
       # 6) Validate the Flyway CLI is available.
       - name: Verify Flyway
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           flyway -v
