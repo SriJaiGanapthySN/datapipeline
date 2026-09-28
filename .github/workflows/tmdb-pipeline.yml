@@ -21,25 +21,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Single job handles validation, migration, and ETL execution.
-  # Branch-to-environment mapping:
-  #   dev   -> dev.env
-  #   stage -> stage.env
-  #   main  -> prod.env
-  tmdb-etl:
-    name: Build, Test, Migrate and Run ETL
+  # Runs for every PR/push/manual trigger. No `environment:` here so PR runs
+  # never hit environment protection rules (e.g. deployment branch policies).
+  validate:
+    name: Build and Test
     runs-on: self-hosted
-    environment:
-      name: ${{ github.event_name == 'pull_request' && 'dev' || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
-
-    env:
-      APP_ENV: ${{ github.event_name == 'pull_request' && 'dev' || (github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev') }}
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-      TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
 
     defaults:
       run:
@@ -51,14 +37,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2) Print the active event, branch, and selected environment.
+      # 2) Print the active event and branch.
       - name: Show Deployment Context
         shell: powershell
         run: |
           Write-Host "Event: $env:GITHUB_EVENT_NAME"
           Write-Host "Ref: $env:GITHUB_REF_NAME"
           Write-Host "Base Ref: $env:GITHUB_BASE_REF"
-          Write-Host "APP_ENV: $env:APP_ENV"
 
       # 3) Check the Python runtime used by the workflow.
       - name: Verify Python
@@ -86,9 +71,52 @@ jobs:
         run: |
           flyway -v
 
-      # 7) Fail clearly if the selected GitHub environment has no database settings.
+      # 7) Always save logs from failed or successful runs.
+      - name: Upload Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tmdb-etl-validate-logs
+          path: |
+            **/*.log
+            .pytest_cache/
+          if-no-files-found: ignore
+
+  # Only runs for pushes/manual runs, so only these actually hit environment
+  # protection rules (required reviewers, deployment branch policies, etc.).
+  # Branch-to-environment mapping:
+  #   dev   -> dev.env
+  #   stage -> stage.env
+  #   main  -> prod.env
+  deploy:
+    name: Migrate and Run ETL
+    needs: validate
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    runs-on: self-hosted
+    environment:
+      name: ${{ github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev' }}
+
+    env:
+      APP_ENV: ${{ github.ref_name == 'main' && 'prod' || github.ref_name == 'stage' && 'stage' || 'dev' }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      TMDB_ACCESS_TOKEN: ${{ secrets.TMDB_ACCESS_TOKEN }}
+
+    defaults:
+      run:
+        shell: powershell
+        working-directory: ${{ github.workspace }}
+
+    steps:
+      # 1) Get the repository code for the current branch.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2) Fail clearly if the selected GitHub environment has no database settings.
       - name: Verify Database Configuration
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           $requiredVariables = @('DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD')
@@ -101,9 +129,8 @@ jobs:
             exit 1
           }
 
-      # 8) Check that the selected database is reachable before migration.
+      # 3) Check that the selected database is reachable before migration.
       - name: Test Flyway Connection
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           # .Trim() guards against secrets pasted with a trailing newline/space, which corrupts Flyway's arg parsing.
@@ -120,9 +147,8 @@ jobs:
             "testConnection"
           )
 
-      # 9) Apply schema changes for the active environment only.
+      # 4) Apply schema changes for the active environment only.
       - name: Run Flyway Migration
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           $dbHost = $env:DB_HOST.Trim()
@@ -141,9 +167,8 @@ jobs:
             "migrate"
           )
 
-      # 10) Show migration status after applying the schema changes.
+      # 5) Show migration status after applying the schema changes.
       - name: Verify Flyway After Migration
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           $dbHost = $env:DB_HOST.Trim()
@@ -161,9 +186,8 @@ jobs:
             "info"
           )
 
-      # 11) Make sure the TMDB token exists before any API call.
+      # 6) Make sure the TMDB token exists before any API call.
       - name: Verify TMDB Secret
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           if ($env:TMDB_ACCESS_TOKEN) {
@@ -173,9 +197,8 @@ jobs:
             exit 1
           }
 
-      # 12) Validate outbound TMDB connectivity from the self-hosted runner.
+      # 7) Validate outbound TMDB connectivity from the self-hosted runner.
       - name: Test TMDB Connectivity
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           $env:HTTPS_PROXY = ""
@@ -193,39 +216,37 @@ jobs:
           Write-Host "TMDB API is reachable."
           Write-Host "Images Base URL: $($response.images.secure_base_url)"
 
-      # 13) Confirm the Python runtime can also reach TMDB over HTTPS.
+      # 8) Confirm the Python runtime can also reach TMDB over HTTPS.
       - name: Verify Python HTTPS
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           python -c "import os,requests;h={'Authorization':'Bearer '+os.environ['TMDB_ACCESS_TOKEN'],'Accept':'application/json'};r=requests.get('https://api.themoviedb.org/3/configuration',headers=h,timeout=20);r.raise_for_status();print(r.status_code)"
 
-      # 14) Run the actual ETL only for pushes or manual runs.
+      # 9) Run the actual ETL.
       - name: Run TMDB ETL Pipeline
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
         shell: powershell
         run: |
           python -m orchestrator.run_pipeline --movie-id 603
 
-      # 15) Always save logs from failed or successful runs.
+      # 10) Always save logs from failed or successful runs.
       - name: Upload Logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tmdb-etl-logs
+          name: tmdb-etl-deploy-logs
           path: |
             **/*.log
             .pytest_cache/
           if-no-files-found: ignore
 
-      # 16) Final status message for a successful run.
+      # 11) Final status message for a successful run.
       - name: Pipeline Completed
         if: success()
         shell: powershell
         run: |
           Write-Host "TMDB ETL Pipeline completed successfully."
 
-      # 17) Final status message for a failed run.
+      # 12) Final status message for a failed run.
       - name: Pipeline Failed
         if: failure()
         shell: powershell
