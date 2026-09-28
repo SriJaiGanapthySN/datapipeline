@@ -23,11 +23,11 @@ They are version-controlled as SQL migration scripts and applied automatically b
 **Flyway** as part of the CI/CD pipeline. This keeps `dev`, `stage`, and `prod`
 environments consistent and auditable.
 
----
+----
 
 ## Project Structure & File Responsibilities
 
-```
+```-
 tmdb-etl/
 ├── .github/workflows/
 │   └── tmdb-pipeline.yml        # GitHub Actions CI/CD pipeline definition
