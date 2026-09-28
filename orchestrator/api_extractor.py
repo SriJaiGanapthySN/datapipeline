@@ -54,7 +54,7 @@ def get_headers():
 
 def get_movie(movie_id):
     last_error = None
-    print(f"Fetching movie with ID: {movie_id}")
+
     for attempt in range(3):
         try:
             response = requests.get(
