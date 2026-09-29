@@ -9,15 +9,7 @@ on:
       - dev
       - stage
       - main
-  pull_request:
-    branches:
-      - dev
-      - stage
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
+
   workflow_dispatch:
 
 jobs:

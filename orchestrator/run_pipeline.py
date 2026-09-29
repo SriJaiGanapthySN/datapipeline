@@ -1,4 +1,5 @@
 from orchestrator.db import get_connection
+import json
 
 def create_pipeline_run():
 
@@ -22,7 +23,6 @@ def create_pipeline_run():
     conn.close()
 
     return run_id
-import json
 
 def store_payload(run_id, payload):
 
