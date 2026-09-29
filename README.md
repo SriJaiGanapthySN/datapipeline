@@ -6,7 +6,7 @@ validates and transforms it, and loads it into a **PostgreSQL** data warehouse. 
 schema/version control is managed with **Flyway**, and the whole pipeline is automated
 through a **GitHub Actions** CI/CD workflow running on a self-hosted Windows runner.
 
----
+-----
 
 ## What is this project about?
 
